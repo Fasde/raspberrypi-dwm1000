@@ -4,8 +4,10 @@ It requires the following modules: DW1000, DW1000Constants and monotonic.
 """
 
 
-import DW1000
-import monotonic
+import sys
+sys.path.append('/home/pi/DW1000_Raspi_Python_library')
+import DW1000 as dw1000
+import time
 import DW1000Constants as C
 
 LEN_DATA = 16
@@ -29,7 +31,7 @@ def millis():
     This function returns the value (in milliseconds) of a clock which never goes backwards. It detects the inactivity of the chip and
     is used to avoid having the chip stuck in an undesirable state.
     """
-    return int(round(monotonic.monotonic()*C.MILLISECONDS))
+    return int(round(time.monotonic()*C.MILLISECONDS))
 
 
 def handleSent():
@@ -147,15 +149,31 @@ def loop():
             noteActivity()
 
 
+
+def trydeca(spi):
+    tx = [0x00, 0x00, 0x00, 0x00, 0x00]
+    #print("Sending data:", tx)
+    rx = spi.xfer2(tx)[::-1]
+    #print("Received data:", end="")
+    #for i in bytearray(rx):
+        #print(f" {hex(i)} ", end="")
+    #print()
+    if hex(rx[0]) != hex(0xde):
+        print("Failed here")
+     
+
 try:
-    PIN_IRQ = 19
-    PIN_SS = 16
-    DW1000.begin(PIN_IRQ)
+    PIN_IRQ = 25
+    PIN_SS = 8
+    DW1000 = dw1000.DW1000()
+    DW1000.begin(irq=PIN_IRQ, bus=0, device=0)
     DW1000.setup(PIN_SS)
+    trydeca(DW1000.spi)
     print("DW1000 initialized")
     print("############### TAG ##############")	
 
     DW1000.generalConfiguration("7D:00:22:EA:82:60:3B:9C", C.MODE_LONGDATA_RANGE_ACCURACY)
+    trydeca(DW1000.spi)
     DW1000.registerCallback("handleSent", handleSent)
     DW1000.registerCallback("handleReceived", handleReceived)
     DW1000.setAntennaDelay(C.ANTENNA_DELAY_RASPI)
@@ -163,6 +181,7 @@ try:
     receiver()
     transmitPoll()
     noteActivity()
+    trydeca(DW1000.spi)
     while 1:
         loop()
 
