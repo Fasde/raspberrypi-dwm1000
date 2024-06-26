@@ -11,19 +11,6 @@ import spidev
 import RPi.GPIO as GPIO
 import DW1000Constants as C
 
-event_add_cnt = 0
-
-def trydeca(spi):
-    tx = [0x00, 0x00, 0x00, 0x00, 0x00]
-    #print("Sending data:", tx)
-    rx = spi.xfer2(tx)[::-1]
-    #print("Received data:", end="")
-    #for i in bytearray(rx):
-        #print(f" {hex(i)} ", end="")
-    #print()
-    if hex(rx[0]) != hex(0xde):
-        print("Failed here")
-
 class DW1000(object):
     spi = spidev.SpiDev()
     _bus = 0
@@ -58,15 +45,16 @@ class DW1000(object):
             self.__dict__[key] = kwargs.get(key)
 
         self.spi = spidev.SpiDev()
+        print(self.spi)
         
-        #self.begin(self.irq, self.rst, self.bus, self.device)
+        self.begin(self.irq, self.rst, self.bus, self.device)
 
 
     def __del__(self):
         self.close()
 
 
-    def begin(self, irq, rst=None, bus=0, device=0):
+    def begin(self, irq, rst=None, bus=None, device=None):
         """
         This function opens the SPI connection available on the Raspberry Pi using the chip select #0.
         Normally, spidev can auto enable chip select when necessary. 
@@ -76,9 +64,9 @@ class DW1000(object):
         Args:
                 irq : The GPIO pin number managing interrupts.
         """
-        self._bus = bus
-        self._device = device
-        self._rst = rst
+        self._bus = 0
+        self._device = 0
+        self._rst = None
         self._irq = irq
 
         # Wait 5 us to open spi connection to let the chip enter idle state
@@ -91,7 +79,7 @@ class DW1000(object):
         if device is not None:
             self._device = device
         self.spi.open(self._bus, self._device)
-        self.spi.max_speed_hz = 2_000_00
+        self.spi.max_speed_hz = 4000000
         self._deviceMode = C.IDLE_MODE
         GPIO.setup(self._irq, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
@@ -521,7 +509,6 @@ class DW1000(object):
         self.writeBytes(C.FS_CTRL, C.FS_XTALT_SUB, fsxtalt, 1)
 
 
-
     def generalConfiguration(self, address, mode):
         """
         This function configures the DW1000 chip with general settings. It also defines the address and the network ID used by the device. It finally prints the
@@ -533,28 +520,20 @@ class DW1000(object):
         currentAddress = self.convertStringToByte(address)
         currentShortAddress = [0] * 2
         self.setEUI(currentAddress)
-        trydeca(self.spi)
-        currentShortAddress[0] = randint(0, 256)
-        currentShortAddress[1] = randint(0, 256)
+        currentShortAddress[0] = 0x11
+        currentShortAddress[1] = 0xDD
         deviceAddress = currentShortAddress[0] * 256 + currentShortAddress[1]
 
         # configure mode, network
         self.newConfiguration()
-        trydeca(self.spi)
         self.setDefaultConfiguration()
-        trydeca(self.spi)
         # setDeviceAddress(2)
         self.setDeviceAddress(deviceAddress)
-        trydeca(self.spi)
         # setNetworkId(10)
         self.setNetworkId(0xDECA)
-        trydeca(self.spi)
         self.enableMode(mode)
-        trydeca(self.spi)
         self.setAntennaDelay(C.ANTENNA_DELAY)
-        trydeca(self.spi)
         self.commitConfiguration()
-        trydeca(self.spi)
 
         data = [0] * 4
         data2 = [0] * 8
@@ -1281,7 +1260,7 @@ class DW1000(object):
         data = [0] * datalength
         time.sleep(0.000005)
         data = self.readBytes(C.RX_BUFFER, C.NO_SUB, data, datalength)
-        print("DW1000.py 1263:\t ", data)
+        #print("DW1000.py 1263:\t ", data)
         return data
 
 
@@ -1373,7 +1352,7 @@ class DW1000(object):
                 header[2] = offset >> 7
                 headerLen = headerLen + 2
 
-        GPIO.output(self._chipSelect, GPIO.LOW)
+        #GPIO.output(self._chipSelect, GPIO.LOW)
         tx = []
         for i in range(0, headerLen):
             #self.spi.xfer([int(header[i])])
@@ -1388,7 +1367,7 @@ class DW1000(object):
         data = []
         for i in range(0, n):
             data.append(rx[i + headerLen])
-        GPIO.output(self._chipSelect, GPIO.HIGH)
+        #GPIO.output(self._chipSelect, GPIO.HIGH)
         return data
 
 
@@ -1417,7 +1396,8 @@ class DW1000(object):
                 header[2] = offset >> 7
                 headerLen = headerLen + 2
 
-        GPIO.output(self._chipSelect, GPIO.LOW)
+
+        #GPIO.output(self._chipSelect, GPIO.LOW)
         tx = []
         for i in range(0, headerLen):
             tx.append(int(header[i]))
@@ -1428,7 +1408,7 @@ class DW1000(object):
                 tx.append(int(data[i]))
                 #self.spi.xfer([int(data[i])])
         self.spi.xfer2(tx)
-        GPIO.output(self._chipSelect, GPIO.HIGH)
+        #GPIO.output(self._chipSelect, GPIO.HIGH)
 
 
     def setBit(self, data, n, bit, val):
@@ -1522,9 +1502,8 @@ class DW1000(object):
         self.writeBytes(C.OTP_IF, C.OTP_CTRL_SUB, [C.OTP_STEP2], 1)
         self.writeBytes(C.OTP_IF, C.OTP_CTRL_SUB, [C.OTP_STEP3], 1)
         self.data = self.readBytes(C.OTP_IF, C.OTP_RDAT_SUB, data, 4)
-        data = self.data
         self.writeBytes(C.OTP_IF, C.OTP_CTRL_SUB, [C.OTP_STEP5], 1)
-        return data
+        return self.data
 
 
     def convertStringToByte(self, string):

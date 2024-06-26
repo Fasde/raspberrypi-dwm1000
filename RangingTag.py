@@ -4,9 +4,13 @@ It requires the following modules: DW1000, DW1000Constants and monotonic.
 """
 
 
-import DW1000
-import monotonic
+import DW1000 as DW1000
+import time
+import RPi.GPIO as GPIO
 import DW1000Constants as C
+
+data1 = 0x44
+data2 = 0x55
 
 class RangingTag():
     dw1000_device = None
@@ -21,10 +25,10 @@ class RangingTag():
     timePollSentTS = 0
     timeRangeSentTS = 0
     timePollAckReceivedTS = 0
-    REPLY_DELAY_TIME_US = 7000
+    REPLY_DELAY_TIME_US = 8000
 
     # The polling range frequency defines the time interval between every distance poll in milliseconds. Feel free to change its value. 
-    POLL_RANGE_FREQ = 1000 # the distance between the tag and the anchor will be estimated every second.
+    POLL_RANGE_FREQ = 200 # the distance between the tag and the anchor will be estimated every second.
 
     def __init__(self, **kwargs):
         self.dw1000_device = DW1000.DW1000(**kwargs)
@@ -36,7 +40,7 @@ class RangingTag():
         This function returns the value (in milliseconds) of a clock which never goes backwards. It detects the inactivity of the chip and
         is used to avoid having the chip stuck in an undesirable state.
         """
-        return int(round(monotonic.monotonic()*C.MILLISECONDS))
+        return int(round(time.monotonic()*C.MILLISECONDS))
 
 
     def handleSent(self):
@@ -92,8 +96,8 @@ class RangingTag():
         for i in range(0, self.LEN_DATA):
             self.data[i] = 0
         self.data[0] = C.POLL
-        self.data[1] = 0xAB
-        self.data[2] = 0xCD
+        self.data[1] = data1
+        self.data[2] = data2
         self.dw1000_device.setData(self.data, self.LEN_DATA)
         self.dw1000_device.startTransmit()
         self.lastPoll = self.millis()
@@ -107,8 +111,8 @@ class RangingTag():
         for i in range(0, self.LEN_DATA):
             self.data[i] = 0
         self.data[0] = C.RANGE
-        self.data[1] = 0xAB
-        self.data[2] = 0xCD
+        self.data[1] = data1
+        self.data[2] = data2
         self.timeRangeSentTS = self.dw1000_device.setDelay(self.REPLY_DELAY_TIME_US, C.MICROSECONDS)
         self.dw1000_device.setTimeStamp(self.data, self.timePollSentTS, 3)
         self.dw1000_device.setTimeStamp(self.data, self.timePollAckReceivedTS, 8)
@@ -166,15 +170,14 @@ class RangingTag():
 
 
 irq = 5
-ss = 6
 rst = None
 bus = 0
 device = 0
 
-rangingTag = RangingTag(irq=irq, rst=rst, bus=bus, device=device)
 
 try:
-    rangingTag.dw1000_device.setup(ss)
+    rangingTag = RangingTag(irq=irq, rst=rst, bus=bus, device=device)
+    #rangingTag.dw1000_device.setup(ss)
     print("DW1000 initialized")
     print("############### TAG ##############")	
 

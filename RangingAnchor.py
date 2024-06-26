@@ -4,8 +4,9 @@ It requires the following modules: DW1000, DW1000Constants and monotonic.
 """
 
 
-import DW1000
-import monotonic
+import DW1000 as DW1000
+import time
+import RPi.GPIO as GPIO
 import DW1000Constants as C
 
 class RangingAnchor(object):
@@ -25,7 +26,7 @@ class RangingAnchor(object):
     timePollSentTS = 0
     timeRangeSentTS = 0
     timeComputedRangeTS = 0
-    REPLY_DELAY_TIME_US = 7000 
+    REPLY_DELAY_TIME_US = 8000 
 
     def __init__(self, **kwargs):
         self.dw1000_device = DW1000.DW1000(**kwargs)
@@ -35,7 +36,7 @@ class RangingAnchor(object):
         This function returns the value (in milliseconds) of a clock which never goes backwards. It detects the inactivity of the chip and
         is used to avoid having the chip stuck in an undesirable state.
         """    
-        return int(round(monotonic.monotonic() * C.MILLISECONDS))
+        return int(round(time.monotonic() * C.MILLISECONDS))
 
 
     def handleSent(self):
@@ -151,11 +152,12 @@ class RangingAnchor(object):
             msgId = self.data[0]
             if msgId != self.expectedMsgId:
                 self.protocolFailed = True
-
+ 
             shortAddress = [0] * 2
             shortAddress[0] = self.data[1]
             shortAddress[1] = self.data[2]
-            print("Short Address: %02X:%02X" % (shortAddress[1], shortAddress[0]))
+            shortAddress = "%02X:%02X" % (shortAddress[1], shortAddress[0])
+
 
             if msgId == C.POLL:
                 self.protocolFailed = False
@@ -173,7 +175,7 @@ class RangingAnchor(object):
                     self.computeRangeAsymmetric()
                     self.transmitRangeAcknowledge()
                     distance = (self.timeComputedRangeTS % C.TIME_OVERFLOW) * C.DISTANCE_OF_RADIO
-                    print("Distance: %.2f m" %(distance))
+                    print(f"{shortAddress}: {round(distance, 2)} m")
 
                 else:
                     self.transmitRangeFailed()
@@ -186,11 +188,8 @@ rst = None
 bus = 0
 device = 0
 
-rangingAnchor = RangingAnchor(irq=irq, rst=rst, bus=bus, device=device)
-
 try:    
-    #PIN_IRQ = 5
-    #PIN_SS = 6
+    rangingAnchor = RangingAnchor(irq=irq, rst=rst, bus=bus, device=device)
     rangingAnchor.dw1000_device.setup(ss)
     print("DW1000 initialized")
     print("############### ANCHOR ##############")
