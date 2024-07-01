@@ -45,7 +45,6 @@ class DW1000(object):
             self.__dict__[key] = kwargs.get(key)
 
         self.spi = spidev.SpiDev()
-        print(self.spi)
         
         self.begin(self.irq, self.rst, self.bus, self.device)
 
@@ -128,9 +127,7 @@ class DW1000(object):
         """
         Callback invoked on the rising edge of the interrupt pin. Handle the configured interruptions.
         """
-        # print("\nInterrupt!")
         self._sysstatus = self.readBytes(C.SYS_STATUS, C.NO_SUB, self._sysstatus, 5)
-        # print(_sysstatus)
         msgReceived = self.getBit(self._sysstatus, 5, C.RXFCG_BIT)
         receiveTimeStampAvailable = self.getBit(self._sysstatus, 5, C.LDEDONE_BIT)
         transmitDone = self.getBit(self._sysstatus, 5, C.TXFRS_BIT)

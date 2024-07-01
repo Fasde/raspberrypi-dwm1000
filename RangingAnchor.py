@@ -8,8 +8,11 @@ import DW1000 as DW1000
 import time
 import RPi.GPIO as GPIO
 import DW1000Constants as C
+from collections import deque
+import statistics
 
 class RangingAnchor(object):
+    tags = {}
     dw1000_device = None
 
     lastActivity = 0
@@ -157,6 +160,8 @@ class RangingAnchor(object):
             shortAddress[0] = self.data[1]
             shortAddress[1] = self.data[2]
             shortAddress = "%02X:%02X" % (shortAddress[1], shortAddress[0])
+            if shortAddress not in self.tags.keys():
+                self.tags[shortAddress] = deque(maxlen=10)
 
 
             if msgId == C.POLL:
@@ -176,6 +181,9 @@ class RangingAnchor(object):
                     self.transmitRangeAcknowledge()
                     distance = (self.timeComputedRangeTS % C.TIME_OVERFLOW) * C.DISTANCE_OF_RADIO
                     print(f"{shortAddress}: {round(distance, 2)} m")
+                    self.tags[shortAddress].append(distance)
+                    avgDistance = statistics.fmean(self.tags[shortAddress])
+                    print(f"{shortAddress}: Average Distance of {round(avgDistance, 2)} m")
 
                 else:
                     self.transmitRangeFailed()

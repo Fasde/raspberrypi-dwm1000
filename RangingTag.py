@@ -13,6 +13,8 @@ data1 = 0x44
 data2 = 0x55
 
 class RangingTag():
+    
+
     dw1000_device = None
 
     LEN_DATA = 18
@@ -177,8 +179,6 @@ device = 0
 
 try:
     rangingTag = RangingTag(irq=irq, rst=rst, bus=bus, device=device)
-    #rangingTag.dw1000_device.setup(ss)
-    print("DW1000 initialized")
     print("############### TAG ##############")	
 
     rangingTag.dw1000_device.generalConfiguration("7D:00:22:EA:82:60:3B:9C", C.MODE_LONGDATA_RANGE_ACCURACY)
